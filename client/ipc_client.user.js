@@ -13,38 +13,50 @@
 (() => {
   const WEBSOCKET_URL = 'ws://127.0.0.1/'
 
+  class Wrapper {
+    constructor(url) {
+      this.ws = new WebSocket(url)
+      this.client_id = () => {
+        // #3 TODO: fail safe method if `sessionStorage` does not exist
+        // in client context.
+        const client_id = sessionStorage.getItem("client::id")
+        if ( client_id === null) {
+          const new_client_id = self.crypto.randomUUID()
+          sessionStorage.setItem("client::id", new_client_id)
+          return new_client_id
+        }
+        return client_id
+      }();
+    }
+
+    send(obj) {
+      const message = JSON.stringify({
+        "client_id": this.client_id,
+        ...obj
+      })
+
+      this.ws.send(message)
+    }
+  }
+
   // #2 TODO: Fix naming of `associated_data`
 
-  // #3 TODO: fail safe method if `sessionStorage` does not exist in client context.
-  // Put client_id coupled with data
-  if (sessionStorage.getItem("client::id") === null) {
-    const client_id = self.crypto.randomUUID()
-    sessionStorage.setItem("client::id", client_id)
-  }
-
-  const client_id = sessionStorage.getItem("client::id")
   const url = new URL(WEBSOCKET_URL)
-  const ws = new WebSocket(url) // #1 TODO: refactor into class
+  const wrapper = new Wrapper(url)
 
-  ws.onopen = () => {
-    ws.send(
-      JSON.stringify({
-        "state": "connected",
-        "client_id": client_id,
-      })
-    )
+  wrapper.ws.onopen = () => {
+    wrapper.send({
+      "state": "connected",
+    })
   }
 
-  ws.onclose = () => {
-    ws.send(
-      JSON.stringify({
-        "state": "disconnected",
-        "client_id": client_id,
-      })
-    )
+  wrapper.ws.onclose = () => {
+    wrapper.send({
+      "state": "disconnected",
+    })
   }
 
-  ws.onmessage = ({ data }) => {
+  wrapper.ws.onmessage = ({ data }) => {
     const { 
       state,
       from_client_id,
@@ -52,29 +64,24 @@
       commands,
     } = JSON.parse(data)
 
+    // ... `factory`
 
-    ws.send(
-      JSON.stringify({
-        "state": "ACK",
-        "client_id": client_id,
-        "associated_data": {
-          "result": bool,
-          "message_id": message_id,
-        },
-      })
-    )
+    wrapper.send({
+      "state": "ACK",
+      "associated_data": {
+        "result": bool,
+        "message_id": message_id,
+      },
+    })
   }
 
-  ws.onerror = (error) => {
-    ws.send(
-      JSON.stringify({
-        "state": "error",
-        "client_id": client_id,
-        "associated_data": {
-          "error": error,
-        },
-      })
-    )
+  wrapper.ws.onerror = (error) => {
+    wrapper.send({
+      "state": "error",
+      "associated_data": {
+        "error": error,
+      }
+    })
   }
 
 })()
