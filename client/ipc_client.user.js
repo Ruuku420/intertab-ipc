@@ -11,13 +11,19 @@
 // ==/UserScript==
 //
 (() => {
+  const WEBSOCKET_URL = 'ws://127.0.0.1/'
+
+  // #2 TODO: Fix naming of `associated_data`
+
+  // #3 TODO: fail safe method if `sessionStorage` does not exist in client context.
+  // Put client_id coupled with data
   if (sessionStorage.getItem("client::id") === null) {
     const client_id = self.crypto.randomUUID()
     sessionStorage.setItem("client::id", client_id)
   }
 
   const client_id = sessionStorage.getItem("client::id")
-  const url = new URL('ws://127.0.0.1/')
+  const url = new URL(WEBSOCKET_URL)
   const ws = new WebSocket(url) // #1 TODO: refactor into class
 
   ws.onopen = () => {
@@ -39,15 +45,22 @@
   }
 
   ws.onmessage = ({ data }) => {
-    const { state, from_client_id, message_id, commands } = JSON.parse(data)
+    const { 
+      state,
+      from_client_id,
+      message_id,
+      commands,
+    } = JSON.parse(data)
 
 
     ws.send(
       JSON.stringify({
         "state": "ACK",
-        "result": bool,
-        "message_id": message_id,
         "client_id": client_id,
+        "associated_data": {
+          "result": bool,
+          "message_id": message_id,
+        },
       })
     )
   }
@@ -56,7 +69,10 @@
     ws.send(
       JSON.stringify({
         "state": "error",
-        "error": error,
+        "client_id": client_id,
+        "associated_data": {
+          "error": error,
+        },
       })
     )
   }
