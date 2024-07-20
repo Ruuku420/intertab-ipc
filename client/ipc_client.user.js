@@ -11,67 +11,67 @@
 // ==/UserScript==
 //
 (() => {
-  const WEBSOCKET_URL = 'ws://127.0.0.1/'
+  const WEBSOCKET_URL = "ws://127.0.0.1/";
 
   class Wrapper {
     constructor(url) {
-      this.ws = new WebSocket(url)
-      this.client_id = () => {
+      this.ws = new WebSocket(url);
+      this.client_id = (() => {
         // #3 TODO: fail safe method if `sessionStorage` does not exist
         // in client context.
-        const client_id = sessionStorage.getItem("client::id")
-        if ( client_id === null) {
-          const new_client_id = self.crypto.randomUUID()
-          sessionStorage.setItem("client::id", new_client_id)
-          return new_client_id
+        const client_id = sessionStorage.getItem("client::id");
+        if (client_id === null) {
+          const new_client_id = self.crypto.randomUUID();
+          sessionStorage.setItem("client::id", new_client_id);
+          return new_client_id;
         }
-        return client_id
-      }();
+        return client_id;
+      })();
     }
 
     send(obj) {
       const message = JSON.stringify({
         "client_id": this.client_id,
-        ...obj
-      })
+        ...obj,
+      });
 
-      this.ws.send(message)
+      this.ws.send(message);
     }
   }
 
   // #2 TODO: Fix naming of `associated_data`
 
-  const url = new URL(WEBSOCKET_URL)
-  const wrapper = new Wrapper(url)
+  const url = new URL(WEBSOCKET_URL);
+  const wrapper = new Wrapper(url);
 
   wrapper.ws.onopen = () => {
     wrapper.send({
       "state": "connected",
-    })
-  }
+    });
+  };
 
   wrapper.ws.onclose = () => {
     wrapper.send({
       "state": "disconnected",
-    })
-  }
+    });
+  };
 
   wrapper.ws.onmessage = ({ data }) => {
-    const { 
+    const {
       state,
       message_id,
       // from_client_id,
       commands,
-    } = JSON.parse(data)
+    } = JSON.parse(data);
 
     switch (state) {
       case "command":
-        let error = null
+        let error = null;
 
-        try { 
-          exec(commands)
+        try {
+          exec(commands);
         } catch (err) {
-          error = err
+          error = err;
         }
 
         if (error) {
@@ -81,29 +81,28 @@
               "error": error,
               "message_id": message_id,
             },
-          })
+          });
         } else {
           wrapper.send({
             "state": "ACK Success",
             "associated_data": {
               "message_id": message_id,
             },
-          })
+          });
         }
         break;
 
       default:
         break;
     }
-  }
+  };
 
   wrapper.ws.onerror = (error) => {
     wrapper.send({
       "state": "error",
       "associated_data": {
         "error": error,
-      }
-    })
-  }
-
-})()
+      },
+    });
+  };
+})();
