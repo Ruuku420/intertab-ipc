@@ -59,20 +59,42 @@
   wrapper.ws.onmessage = ({ data }) => {
     const { 
       state,
-      from_client_id,
       message_id,
+      // from_client_id,
       commands,
     } = JSON.parse(data)
 
-    // ... `factory`
+    switch (state) {
+      case "command":
+        let error = null
 
-    wrapper.send({
-      "state": "ACK",
-      "associated_data": {
-        "result": bool,
-        "message_id": message_id,
-      },
-    })
+        try { 
+          exec(commands)
+        } catch (err) {
+          error = err
+        }
+
+        if (error) {
+          wrapper.send({
+            "state": "ACK Error",
+            "associated_data": {
+              "error": error,
+              "message_id": message_id,
+            },
+          })
+        } else {
+          wrapper.send({
+            "state": "ACK Success",
+            "associated_data": {
+              "message_id": message_id,
+            },
+          })
+        }
+        break;
+
+      default:
+        break;
+    }
   }
 
   wrapper.ws.onerror = (error) => {
